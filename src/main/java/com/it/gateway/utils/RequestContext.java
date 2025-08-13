@@ -1,0 +1,26 @@
+package com.it.gateway.utils;
+
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import com.it.gateway.config.LoggingInterceptor;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+public class RequestContext {
+
+    public static String getCurrentRequestId() {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes != null) {
+            HttpServletRequest request = attributes.getRequest();
+            return (String) request.getAttribute(LoggingInterceptor.REQUEST_ID_ATTRIBUTE);
+        }
+        return null;
+    }
+
+    public static HttpServletRequest getCurrentRequest() {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        return attributes != null ? attributes.getRequest() : null;
+    }
+
+}
