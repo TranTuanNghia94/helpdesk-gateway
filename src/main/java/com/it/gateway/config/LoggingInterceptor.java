@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class LoggingInterceptor implements HandlerInterceptor {
     public static final String REQUEST_ID_HEADER = "X-Request-ID";
+    public static final String USERNAME_ATTRIBUTE = "username";
     public static final String REQUEST_ID_ATTRIBUTE = "requestId";
     public static final String REQUEST_ID_MDC_KEY = "requestId";
     public static final String USER_ID_MDC_KEY = "userId";

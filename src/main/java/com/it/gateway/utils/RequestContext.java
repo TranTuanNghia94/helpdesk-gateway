@@ -1,5 +1,6 @@
 package com.it.gateway.utils;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -23,7 +24,6 @@ public class RequestContext {
         return attributes != null ? attributes.getRequest() : null;
     }
 
-
     public static void setCurrentRequestId(String requestId) {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attributes != null) {
@@ -40,4 +40,7 @@ public class RequestContext {
         }
     }
 
+    public static String getCurrentUsername() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
 }

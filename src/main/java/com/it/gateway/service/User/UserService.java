@@ -1,6 +1,7 @@
 package com.it.gateway.service.User;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.it.gateway.enums.Constant;
@@ -32,9 +33,9 @@ import java.util.Base64;
 @RequiredArgsConstructor
 public class UserService {
     private final ConcurrentMap<String, CompletableFuture<LoginResponse>> pendingRequests = new ConcurrentHashMap<>();
-    private final KafkaMessageHandlerUser kafkaMessageHandlerUser;
     private final JwtService jwtService;
     private final RedisService redisService;
+    private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
 
     public void timeoutRequest(String requestId) {
         if (pendingRequests.containsKey(requestId)) {
@@ -45,29 +46,25 @@ public class UserService {
         }
     }
 
-    public CompletableFuture<LoginResponse> login(Login payload) {
+    public CompletableFuture<LoginResponse> login(Login payload, String requestId) {
         CompletableFuture<LoginResponse> future = new CompletableFuture<>();
         try {
-            log.info("Login request username: {}  | requestId: {}", payload.getUsername(), RequestContext.getCurrentRequestId());
+            log.info("Login request username: {}  | requestId: {}", payload.getUsername(), requestId);
 
             // Hash the password
             payload.hashPassword();
 
             // Build the Kafka message
-            KafkaMessage kafkaMessage = KafkaMessageBuilder.buildKafkaMessage(Operation.LOGIN, "PROCESSING", payload);
-            
-            // Send the Kafka message
-            kafkaMessageHandlerUser.sendMessage(kafkaMessage, Constant.USER_EVENT_REQUEST);
+            KafkaMessage kafkaMessage = KafkaMessageBuilder.buildKafkaMessage(requestId, Operation.LOGIN, "PROCESSING", payload);
 
-            // Add the future to the pending requests
-            pendingRequests.put(RequestContext.getCurrentRequestId(), future);
+            // Send the Kafka message
+            kafkaTemplate.send(Constant.USER_EVENT_REQUEST, requestId, kafkaMessage);
 
         } catch (Exception e) {
-            log.error("Error login username: {} | requestId: {}, \nError: {}", payload.getUsername(),
-                    RequestContext.getCurrentRequestId(), e.getMessage());
+            log.error("Error login username: {} | requestId: {}, \nError: {}", payload.getUsername(), requestId, e.getMessage());
 
             throw new ApiException(ApiException.ErrorCode.INTERNAL_ERROR, e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR.value(), RequestContext.getCurrentRequestId());
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(), requestId);
         }
 
         return future;
@@ -99,8 +96,27 @@ public class UserService {
             pendingRequests.get(requestId).complete(response);
             pendingRequests.remove(requestId);
         } catch (Exception e) {
-            log.error("Error handling login response requestId: {} | username: {} | \nError: {}", requestId, userInfo.getUsername(), e.getMessage());
-            throw new ApiException(ApiException.ErrorCode.INTERNAL_ERROR, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value(), requestId);
+            log.error("Error handling login response requestId: {} | username: {} | \nError: {}", requestId,
+                    userInfo.getUsername(), e.getMessage());
+            throw new ApiException(ApiException.ErrorCode.INTERNAL_ERROR, e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(), requestId);
+        }
+    }
+
+    public void logout(String username, String requestId) {
+        try {
+            log.info("Logout request username: {} | requestId: {}", username, requestId);
+
+            // Remove the refresh token from the redis
+            redisService.delete(RedisKey.REFRESH_TOKEN_PREFIX + username);
+            redisService.delete(RedisKey.ACCESS_TOKEN_PREFIX + username);
+            redisService.delete(username);
+
+            log.info("Logout success username: {} | requestId: {}", username, requestId);
+        } catch (Exception e) {
+            log.error("Error logout username: {} | requestId: {} | \nError: {}", username, requestId, e.getMessage());
+            throw new ApiException(ApiException.ErrorCode.INTERNAL_ERROR, e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(), requestId);
         }
     }
 }

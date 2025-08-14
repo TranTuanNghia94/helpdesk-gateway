@@ -28,9 +28,8 @@ public class UserController {
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@RequestBody Login login) {
         String requestId = UUID.randomUUID().toString();
-        RequestContext.setCurrentRequestId(requestId);
-
-        CompletableFuture<LoginResponse> response = userService.login(login);
+        log.info("Login  request initiated: {}", requestId);
+        CompletableFuture<LoginResponse> response = userService.login(login, requestId);
 
         try {
             LoginResponse loginResponse = response.get(40, TimeUnit.SECONDS);
@@ -40,9 +39,11 @@ public class UserController {
         }
     }
 
-    // @PostMapping("/logout")
-    // public ApiResponse<Void> logout(@RequestBody Logout logout) {
-    //     userService.logout(logout);
-    //     return ApiResponse.success("Logout success");
-    // }
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout() {
+        String requestId = UUID.randomUUID().toString();
+        log.info("Logging out user: {}", RequestContext.getCurrentUsername());
+        userService.logout(RequestContext.getCurrentUsername(), requestId);
+        return ApiResponse.success("Logout success");
+    }
 }
