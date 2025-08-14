@@ -23,4 +23,21 @@ public class RequestContext {
         return attributes != null ? attributes.getRequest() : null;
     }
 
+
+    public static void setCurrentRequestId(String requestId) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes != null) {
+            HttpServletRequest request = attributes.getRequest();
+            request.setAttribute(LoggingInterceptor.REQUEST_ID_ATTRIBUTE, requestId);
+        }
+    }
+
+    public static void removeCurrentRequestId(String requestId) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes != null) {
+            HttpServletRequest request = attributes.getRequest();
+            request.removeAttribute(requestId);
+        }
+    }
+
 }

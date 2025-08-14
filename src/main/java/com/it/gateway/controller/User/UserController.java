@@ -1,0 +1,48 @@
+package com.it.gateway.controller.User;
+
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import com.it.gateway.model.General.ApiResponse;
+import com.it.gateway.model.User.Login;
+import com.it.gateway.model.User.LoginResponse;
+import com.it.gateway.utils.RequestContext;
+import com.it.gateway.service.User.UserService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Controller
+@RequestMapping("/users")
+@RequiredArgsConstructor
+@Slf4j
+public class UserController {
+    private final UserService userService;
+
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(@RequestBody Login login) {
+        String requestId = UUID.randomUUID().toString();
+        RequestContext.setCurrentRequestId(requestId);
+
+        CompletableFuture<LoginResponse> response = userService.login(login);
+
+        try {
+            LoginResponse loginResponse = response.get(40, TimeUnit.SECONDS);
+            return ApiResponse.success(loginResponse, "Login success");
+        } catch (Exception e) {
+           return ApiResponse.error("500", e.getMessage());
+        }
+    }
+
+    // @PostMapping("/logout")
+    // public ApiResponse<Void> logout(@RequestBody Logout logout) {
+    //     userService.logout(logout);
+    //     return ApiResponse.success("Logout success");
+    // }
+}
