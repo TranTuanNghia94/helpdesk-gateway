@@ -14,23 +14,23 @@ import com.it.gateway.model.User.Login;
 import com.it.gateway.model.User.LoginResponse;
 import com.it.gateway.model.User.RefreshToken;
 import com.it.gateway.utils.RequestContext;
-import com.it.gateway.service.User.UserService;
+import com.it.gateway.service.User.AuthService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 @Slf4j
-public class UserController {
-    private final UserService userService;
+public class AuthController {
+    private final AuthService authService;
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@RequestBody Login login) {
         String requestId = UUID.randomUUID().toString();
         log.info("Login  request initiated: {}", requestId);
-        CompletableFuture<LoginResponse> response = userService.login(login, requestId);
+        CompletableFuture<LoginResponse> response = authService.login(login, requestId);
 
         try {
             LoginResponse loginResponse = response.get(120, TimeUnit.SECONDS);
@@ -45,7 +45,7 @@ public class UserController {
         String requestId = UUID.randomUUID().toString();
         log.info("Refresh token request initiated: {}", requestId);
         
-        LoginResponse response = userService.refreshToken(refreshToken, requestId);
+        LoginResponse response = authService.refreshToken(refreshToken, requestId);
         return ApiResponse.success(requestId, response, "Refresh token success");
     }
 
@@ -53,7 +53,7 @@ public class UserController {
     public ApiResponse<Void> logout() {
         String requestId = UUID.randomUUID().toString();
         log.info("Logging out user: {}", RequestContext.getCurrentUsername());
-        userService.logout(RequestContext.getCurrentUsername(), requestId);
+        authService.logout(RequestContext.getCurrentUsername(), requestId);
         return ApiResponse.success(requestId, null, "Logout success");
     }
 }
