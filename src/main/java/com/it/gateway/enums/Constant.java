@@ -3,16 +3,16 @@ package com.it.gateway.enums;
 public class Constant {
     
     public enum ResponseStatus {
-        SUCCESS("Success"),
-        ERROR("Error"),
-        WARNING("Warning"),
-        PENDING("Pending"),
-        FAILED("Failed"),
-        PROCESSING("Processing"),
-        COMPLETED("Completed"),
-        CANCELLED("Cancelled"),
-        REJECTED("Rejected"),
-        APPROVED("Approved");
+        SUCCESS("SUCCESS"),
+        ERROR("ERROR"),
+        WARNING("WARNING"),
+        PENDING("PENDING"),
+        FAILED("FAILED"),
+        PROCESSING("PROCESSING"),
+        COMPLETED("COMPLETED"),
+        CANCELLED("CANCELLED"),
+        REJECTED("REJECTED"),
+        APPROVED("APPROVED");
 
         private final String value;
 

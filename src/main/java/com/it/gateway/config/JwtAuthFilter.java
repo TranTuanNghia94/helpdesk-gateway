@@ -33,58 +33,72 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
-
-        // Skip JWT processing for public endpoints
-        String requestURI = request.getRequestURI().replace("/api/v1", "");
-        if (requestURI.equals("/users/login") || 
-            requestURI.startsWith("/actuator/") || 
-            requestURI.startsWith("/v3/api-docs/") || 
-            requestURI.startsWith("/swagger-ui/")) {
+        String requestURI = getNormalizedRequestURI(request);
+        
+        if (isPublicEndpoint(requestURI)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extract token from Bearer header
+        String jwt = extractJwtFromHeader(request);
+        if (jwt == null) {
+            sendUnauthorizedResponse(response, "No token provided");
+            return;
+        }
+
+        String username = jwtService.extractUsername(jwt);
+        if (!isValidToken(jwt, username)) {
+            sendUnauthorizedResponse(response, "Invalid token");
+            return;
+        }
+
+        if (jwtService.isTokenExpired(jwt)) {
+            sendUnauthorizedResponse(response, "Token expired - user: " + username);
+            return;
+        }
+
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
+        if (userDetails == null) {
+            sendUnauthorizedResponse(response, "User not found - user: " + username);
+            return;
+        }
+
+        setAuthentication(userDetails, request);
+        filterChain.doFilter(request, response);
+    }
+
+    private String getNormalizedRequestURI(HttpServletRequest request) {
+        return request.getRequestURI().replace("/api/v1", "");
+    }
+
+    private boolean isPublicEndpoint(String requestURI) {
+        return requestURI.equals("/users/login") || 
+               requestURI.startsWith("/actuator/") || 
+               requestURI.startsWith("/v3/api-docs/") || 
+               requestURI.startsWith("/swagger-ui/");
+    }
+
+    private String extractJwtFromHeader(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("No token provided");
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+            return null;
         }
+        return authHeader.substring(7);
+    }
 
-        jwt = authHeader.substring(7);
-        username = jwtService.extractUsername(jwt);
+    private boolean isValidToken(String jwt, String username) {
+        return username != null && jwtService.isTokenValid(jwt, username);
+    }
 
-        // If we got a username and no authentication is set
-        if (username != null && jwtService.isTokenValid(jwt, username)) {
+    private void sendUnauthorizedResponse(HttpServletResponse response, String message) {
+        log.warn(message);
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    }
 
-            if (jwtService.isTokenExpired(jwt)) {
-                log.warn("Token expired - user: {}", username);
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
-            }
-
-            UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
-            if (userDetails == null) {
-                log.warn("User not found - user: {}", username);
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
-            }
-
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails,
-                    null,
-                    userDetails.getAuthorities());
-                    
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
-
-            filterChain.doFilter(request, response);
-        } else {
-            log.warn("Invalid token or token expired");
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        }
+    private void setAuthentication(UserDetails userDetails, HttpServletRequest request) {
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
     }
 }

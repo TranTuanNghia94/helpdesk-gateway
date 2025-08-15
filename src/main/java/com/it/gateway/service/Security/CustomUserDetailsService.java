@@ -6,6 +6,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.it.gateway.model.User.UserInfo;
 import com.it.gateway.service.Redis.RedisService;
 
@@ -24,13 +25,15 @@ public class CustomUserDetailsService implements UserDetailsService {
         try {
             log.info("Loading user by username: {}", username);
 
-            UserInfo user = (UserInfo) redisService.get(username);
+            Object user = redisService.get(username);
+            ObjectMapper objectMapper = new ObjectMapper();
+            UserInfo userInfo = objectMapper.convertValue(user, UserInfo.class);
 
-            if (user == null) {
+            if (userInfo == null) {
                 throw new UsernameNotFoundException("User not found");
             }
             
-            return User.withUsername(user.getUsername()).build();
+            return User.withUsername(userInfo.getUsername()).password("").roles("USER").build();
         } catch (Exception e) {
             log.error("Error loading user by username: {} | \nError: {}", username, e.getMessage());
             throw new UsernameNotFoundException(e.getMessage());

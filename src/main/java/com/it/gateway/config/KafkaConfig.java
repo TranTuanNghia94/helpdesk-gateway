@@ -21,9 +21,6 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 import com.it.gateway.model.Kafka.KafkaMessage;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.util.backoff.FixedBackOff;
 
 
 @Configuration
@@ -62,18 +59,6 @@ public class KafkaConfig {
             configProps.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
         }
         
-        // Producer reliability configurations
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        configProps.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 60000);
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-        configProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
-        
-        // Performance configurations
-        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
-        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 10);
-        configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
-        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
 
         return new DefaultKafkaProducerFactory<>(configProps);
     }
@@ -96,18 +81,7 @@ public class KafkaConfig {
             configProps.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
         }
         
-        // Consumer reliability configurations
-        configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        configProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);
-        configProps.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);
-        configProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 15000);
-        configProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
-        configProps.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 1048576);
-        
-        // Error handling configurations
-        configProps.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1);
-        configProps.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+
 
         JsonDeserializer<KafkaMessage> jsonDeserializer = new JsonDeserializer<>(KafkaMessage.class);
         jsonDeserializer.addTrustedPackages("*");
@@ -126,21 +100,8 @@ public class KafkaConfig {
         ConcurrentKafkaListenerContainerFactory<String, KafkaMessage> factory = 
             new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
-        
-        // Concurrency settings
-        factory.setConcurrency(3);
-        factory.getContainerProperties().setPollTimeout(3000);
-        
-        // Error handling
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(
-            new FixedBackOff(60000L, 3L) // 60 seconds delay, 3 retries
-        );
-        factory.setCommonErrorHandler(errorHandler);
-        
-        // Manual acknowledgment
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        
         return factory;
+
     }
 
 

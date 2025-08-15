@@ -4,17 +4,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.it.gateway.enums.Constant;
 import com.it.gateway.enums.Operation;
 import com.it.gateway.enums.RedisKey;
 import com.it.gateway.exception.ApiException;
 import com.it.gateway.utils.KafkaMessageBuilder;
-import com.it.gateway.utils.RequestContext;
 import com.it.gateway.model.Kafka.KafkaMessage;
 import com.it.gateway.model.User.Login;
 import com.it.gateway.model.User.LoginResponse;
 import com.it.gateway.model.User.UserInfo;
-import com.it.gateway.service.Kafka.KafkaMessageHandlerUser;
 import com.it.gateway.service.Redis.RedisService;
 import com.it.gateway.service.Security.JwtService;
 
@@ -36,6 +35,7 @@ public class UserService {
     private final JwtService jwtService;
     private final RedisService redisService;
     private final KafkaTemplate<String, KafkaMessage> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     public void timeoutRequest(String requestId) {
         if (pendingRequests.containsKey(requestId)) {
@@ -51,8 +51,8 @@ public class UserService {
         try {
             log.info("Login request username: {}  | requestId: {}", payload.getUsername(), requestId);
 
-            // Hash the password
-            payload.hashPassword();
+            // Add the future to pending requests before sending Kafka message
+            pendingRequests.put(requestId, future);
 
             // Build the Kafka message
             KafkaMessage kafkaMessage = KafkaMessageBuilder.buildKafkaMessage(requestId, Operation.LOGIN, "PROCESSING", payload);
@@ -62,17 +62,35 @@ public class UserService {
 
         } catch (Exception e) {
             log.error("Error login username: {} | requestId: {}, \nError: {}", payload.getUsername(), requestId, e.getMessage());
-
-            throw new ApiException(ApiException.ErrorCode.INTERNAL_ERROR, e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR.value(), requestId);
+            
+            // Remove the future from pending requests if there's an error
+            pendingRequests.remove(requestId);
+            future.completeExceptionally(new ApiException(ApiException.ErrorCode.INTERNAL_ERROR, e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(), requestId));
         }
 
         return future;
     }
 
-    public void handleLoginResponse(String requestId, UserInfo userInfo) {
+    public void handleLoginResponse(KafkaMessage message) {
+        UserInfo userInfo = objectMapper.convertValue(message.getPayload(), UserInfo.class);
+        CompletableFuture<LoginResponse> future = pendingRequests.remove(message.getMessageId());
+
+        // Check if future exists
+        if (future == null) {
+            log.warn("No pending request found for messageId: {}", message.getMessageId());
+            return;
+        }
+
         try {
-            log.info("Login response requestId: {} | userInfo: {}", requestId, userInfo);
+            if (message.getStatus().equals(Constant.ResponseStatus.ERROR.getValue())) {
+                log.error("Login error response requestId: {} | \nError: {}", message.getMessageId(), message.getErrorMessage());
+                future.completeExceptionally(new ApiException(ApiException.ErrorCode.INTERNAL_ERROR, message.getErrorMessage(),
+                        HttpStatus.INTERNAL_SERVER_ERROR.value(), message.getMessageId()));
+                return;
+            }
+
+            log.info("Login response requestId: {} | userInfo: {}", message.getMessageId(), userInfo);
 
             // Generate the JWT token
             String accessToken = jwtService.generateAccessToken(userInfo);
@@ -90,16 +108,15 @@ public class UserService {
             response.setUsername(userInfo.getUsername());
             response.setTokenType("Bearer");
 
-            log.info("Login success response requestId: {} | username: {} ", requestId, userInfo.getUsername());
+            log.info("Login success response requestId: {} | username: {} ", message.getMessageId(), userInfo.getUsername());
 
             // Complete the future
-            pendingRequests.get(requestId).complete(response);
-            pendingRequests.remove(requestId);
+            future.complete(response);
         } catch (Exception e) {
-            log.error("Error handling login response requestId: {} | username: {} | \nError: {}", requestId,
-                    userInfo.getUsername(), e.getMessage());
-            throw new ApiException(ApiException.ErrorCode.INTERNAL_ERROR, e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR.value(), requestId);
+            log.error("Error handling login response requestId: {} | \nError: {}", message.getMessageId(), e.getMessage());
+
+            future.completeExceptionally(new ApiException(ApiException.ErrorCode.INTERNAL_ERROR, e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(), message.getMessageId()));
         }
     }
 

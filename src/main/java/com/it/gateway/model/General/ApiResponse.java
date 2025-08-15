@@ -2,6 +2,7 @@ package com.it.gateway.model.General;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.it.gateway.enums.Constant.ResponseStatus;
 import com.it.gateway.utils.RequestContext;
 
@@ -14,6 +15,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
     private String status;
     private String message;
@@ -42,13 +44,13 @@ public class ApiResponse<T> {
                 .build();
     }
 
-    public static <T> ApiResponse<T> success(T data, String message) {
+    public static <T> ApiResponse<T> success(String requestId, T data, String message) {
         return ApiResponse.<T>builder()
                 .status(ResponseStatus.SUCCESS.getValue())
                 .message(message)
                 .data(data)
                 .timestamp(LocalDateTime.now())
-                .requestId(RequestContext.getCurrentRequestId())
+                .requestId(requestId)
                 .build();
     }
 
@@ -63,13 +65,13 @@ public class ApiResponse<T> {
                 .build();
     }
 
-    public static <T> ApiResponse<T> error(String errorCode, String errorMessage) {
+    public static <T> ApiResponse<T> error(String requestId, String errorCode, String errorMessage) {
         return ApiResponse.<T>builder()
                 .status(ResponseStatus.ERROR.getValue())
                 .errorCode(errorCode)
                 .errorMessage(errorMessage)
                 .timestamp(LocalDateTime.now())
-                .requestId(RequestContext.getCurrentRequestId())
+                .requestId(requestId)
                 .build();
     }
 

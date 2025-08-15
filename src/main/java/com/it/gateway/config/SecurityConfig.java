@@ -2,10 +2,14 @@ package com.it.gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -21,30 +25,27 @@ import lombok.extern.slf4j.Slf4j;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-
+    
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
-        try {
-            log.info("Configuring security...");
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-            http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                    .csrf(csrf -> csrf.disable())
-                    .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                    .authorizeHttpRequests(auth -> auth
-                            .requestMatchers("/users/login", "/actuator/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
-                            .anyRequest().authenticated())
-                    .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        log.info("Configuring security...");
 
-            log.info("Security configuration completed");
-            return http.build();
-        } catch (Exception e) {
-            log.error("Error configuring security: {}", e.getMessage());
-            throw new RuntimeException(e);
-        }
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/users/login", "/actuator/**", "/v3/api-docs/**", "/swagger-ui/**")
+                        .permitAll()
+                        .anyRequest().authenticated())
+                        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        log.info("Security configuration completed");
+        return http.build();
     }
 
     @Bean
@@ -61,5 +62,24 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
+    // @Bean
+    // public AuthenticationProvider authenticationProvider() {
+    //     DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+    //     authProvider.setUserDetailsService(userDetailsService);
+    //     authProvider.setPasswordEncoder(passwordEncoder());
+    //     return authProvider;
+    // }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
 
 }
