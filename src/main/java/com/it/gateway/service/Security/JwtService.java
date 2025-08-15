@@ -9,7 +9,9 @@ import java.util.function.Function;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.it.gateway.enums.RedisKey;
 import com.it.gateway.model.User.UserInfo;
+import com.it.gateway.service.Redis.RedisService;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -30,6 +32,8 @@ public class JwtService {
 
     @Value("${jwt.refresh-expiration}")
     private long jwtRefreshExpiration;
+
+    private final RedisService redisService;
 
     private Key getSigningKey() {
         byte[] keyBytes = secretKey.getBytes();
@@ -82,6 +86,12 @@ public class JwtService {
 
     public boolean isTokenValid(String token, String username) {
         final String tokenUsername = extractUsername(token);
-        return (tokenUsername.equals(username)) && !isTokenExpired(token);
+
+        String redisToken = (String) redisService.get(RedisKey.ACCESS_TOKEN_PREFIX + username);
+        if (redisToken == null || !redisToken.equals(token)) {
+            return false;
+        }
+
+        return (tokenUsername.equals(username));
     }
 }

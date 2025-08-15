@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import com.it.gateway.model.General.ApiResponse;
 import com.it.gateway.model.User.Login;
 import com.it.gateway.model.User.LoginResponse;
+import com.it.gateway.model.User.RefreshToken;
 import com.it.gateway.utils.RequestContext;
 import com.it.gateway.service.User.UserService;
 
@@ -37,6 +38,15 @@ public class UserController {
         } catch (Exception e) {
            return ApiResponse.error(requestId, "500", e.getMessage());
         }
+    }
+
+    @PostMapping("/refresh-token")
+    public ApiResponse<LoginResponse> refreshToken(@RequestBody RefreshToken refreshToken) {
+        String requestId = UUID.randomUUID().toString();
+        log.info("Refresh token request initiated: {}", requestId);
+        
+        LoginResponse response = userService.refreshToken(refreshToken, requestId);
+        return ApiResponse.success(requestId, response, "Refresh token success");
     }
 
     @PostMapping("/logout")
