@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.it.gateway.exception.ApiException;
 import com.it.gateway.model.Ticket.CategoryInfo;
@@ -49,6 +50,7 @@ public class CategoryService {
 
             KafkaMessage kafkaMessage = KafkaMessageBuilder.buildKafkaMessage(requestId,
                     Operation.OPERATION_GET_ALL_CATEGORIES, "PROCESSING", null);
+                    
             kafkaTemplate.send(Constant.TICKET_EVENT_REQUEST, requestId, kafkaMessage);
         } catch (Exception e) {
             log.error("Error get all categories - requestId: {} | error: {}", requestId, e.getMessage());
@@ -72,7 +74,7 @@ public class CategoryService {
                 return;
             }
 
-            List<CategoryInfo> categories = objectMapper.convertValue(message.getPayload(), List.class);
+            List<CategoryInfo> categories = objectMapper.convertValue(message.getPayload(), new TypeReference<List<CategoryInfo>>() {});
             log.info("handleCategoryResponse success requestId: {} | categories: {}", message.getMessageId(),categories);
 
             future.complete(categories);
