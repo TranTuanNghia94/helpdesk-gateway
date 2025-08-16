@@ -33,7 +33,7 @@ public class AuthController {
         CompletableFuture<LoginResponse> response = authService.login(login, requestId);
 
         try {
-            LoginResponse loginResponse = response.get(120, TimeUnit.SECONDS);
+            LoginResponse loginResponse = response.get(60, TimeUnit.SECONDS);
             return ApiResponse.success(requestId, loginResponse, "Login success");
         } catch (Exception e) {
            return ApiResponse.error(requestId, "500", e.getMessage());

@@ -27,6 +27,12 @@ public class Constant {
 
 
     public static final String EVENT_GROUP = "helpdesk-gateway";
+
+    // USER SERVICE
     public static final String USER_EVENT_REQUEST = "user-event-request";
     public static final String USER_EVENT_RESPONSE = "user-event-response";
+
+    // TICKET SERVICE
+    public static final String TICKET_EVENT_REQUEST = "ticket-event-request";
+    public static final String TICKET_EVENT_RESPONSE = "ticket-event-response";
 }
