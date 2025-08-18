@@ -34,6 +34,7 @@ public class CategoryController {
             List<CategoryInfo> categories = response.get(60, TimeUnit.SECONDS);
             return ApiResponse.success(requestId, categories, "Get all categories success");
         } catch (Exception e) {
+            log.error("Get all categories error: {}", e.getMessage());
             return ApiResponse.error(requestId, "500", e.getMessage());
         }
     }

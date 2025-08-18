@@ -10,33 +10,32 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.it.gateway.model.General.ApiResponse;
-import com.it.gateway.model.Ticket.PriorityInfo;
-import com.it.gateway.service.Ticket.PriorityService;
+import com.it.gateway.model.Ticket.StatusInfo;
+import com.it.gateway.service.Ticket.StatusService;
 
 import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/priorities")
+@RequestMapping("/status")
 @RequiredArgsConstructor
 @Slf4j
-public class PriorityController {
+public class StatusController {
 
-    private final PriorityService priorityService;
+    private final StatusService statusService;
 
     @GetMapping
-    public ApiResponse<List<PriorityInfo>> getAllPriorities() {
+    public ApiResponse<List<StatusInfo>> getAllStatuses() {
         String requestId = UUID.randomUUID().toString();
-        log.info("Get all priorities request initiated: {}", requestId);
-
-        CompletableFuture<List<PriorityInfo>> response = priorityService.getAllPriorities(requestId);
+        log.info("Get all statuses request initiated: {}", requestId);
 
         try {
-            List<PriorityInfo> priorities = response.get(60, TimeUnit.SECONDS);
-            return ApiResponse.success(requestId, priorities, "Get all priorities success");
+            List<StatusInfo> statuses = statusService.getAllStatuses(requestId).get(60, TimeUnit.SECONDS);
+            return ApiResponse.success(requestId, statuses, "Get all statuses success");
         }
         catch (Exception e) {
-            log.error("Get all priorities error: {}", e.getMessage());
+            log.error("Get all statuses error: {}", e.getMessage());
             return ApiResponse.error(requestId, "500", e.getMessage());
         }
     }
